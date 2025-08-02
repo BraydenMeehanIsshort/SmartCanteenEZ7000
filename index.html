@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Canteen (Static Demo)</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; background: #f0f4f8; color: #333;
+  }
+  header {
+    background: #00796b;
+    color: white;
+    padding: 1.5rem 1rem;
+    text-align: center;
+  }
+  main {
+    max-width: 700px;
+    margin: 2rem auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  }
+  h2 {
+    color: #00796b;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  #loginDiv {
+    text-align: center;
+  }
+  #userEmail {
+    font-weight: bold;
+    margin-top: 1rem;
+    color: #004d40;
+  }
+  button {
+    background: #00796b;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 700;
+    margin-top: 1rem;
+  }
+  button:hover {
+    background: #004d40;
+  }
+  form label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: 600;
+  }
+  form select, form input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+  }
+  #orderMsg {
+    margin-top: 1rem;
+    font-weight: 600;
+    color: green;
+  }
+  #ordersList {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 1rem;
+  }
+  #ordersList li {
+    background: #e0f2f1;
+    margin: 8px 0;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .hidden { display: none; }
+  nav {
+    margin-top: 1rem;
+    text-align: center;
+  }
+  nav button {
+    margin: 0 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Smart Canteen</h1>
+</header>
+
+<main>
+  <div id="loginDiv">
+    <div id="g_id_onload"
+         data-client_id="107691311500823564590:lod2r6kdck8.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="filled_blue"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="left">
+    </div>
+  </div>
+
+  <p id="userEmail" class="hidden"></p>
+  <nav id="nav" class="hidden">
+    <button onclick="showSection('order')">Order</button>
+    <button onclick="showSection('admin')">Admin Dashboard</button>
+    <button onclick="signOut()">Logout</button>
+  </nav>
+
+  <section id="orderSection" class="hidden">
+    <h2>Place Your Order</h2>
+    <form id="orderForm">
+      <label for="item">Select Item</label>
+      <select id="item" required>
+        <option value="">-- Choose an item --</option>
+        <option value="Sandwich">Sandwich - $5</option>
+        <option value="Pizza">Pizza - $6</option>
+        <option value="Drink">Drink - $2</option>
+      </select>
+
+      <label for="quantity">Quantity</label>
+      <input type="number" id="quantity" min="1" value="1" required />
+
+      <button type="submit">Order Now</button>
+    </form>
+    <p id="orderMsg"></p>
+  </section>
+
+  <section id="adminSection" class="hidden">
+    <h2>Admin Dashboard</h2>
+    <ul id="ordersList"></ul>
+  </section>
+</main>
+
+<script>
+  let currentUser = null;
+  let currentRole = null; // 'student' or 'admin'
+
+  // Update this list with your admin emails:
+  const ADMIN_EMAILS = [
+    "admin1@example.com",
+    "admin2@example.com"
+  ];
+
+  function handleCredentialResponse(response) {
+    const data = parseJwt(response.credential);
+    const email = data.email;
+    currentUser = { email };
+
+    currentRole = ADMIN_EMAILS.includes(email.toLowerCase()) ? 'admin' : 'student';
+
+    document.getElementById('userEmail').textContent = `Logged in as: ${email} (${currentRole})`;
+    document.getElementById('userEmail').classList.remove('hidden');
+
+    document.getElementById('loginDiv').classList.add('hidden');
+    document.getElementById('nav').classList.remove('hidden');
+    
+    if (currentRole === 'admin') {
+      loadOrders();
+      showSection('admin');
+    } else {
+      showSection('order');
+    }
+  }
+
+  function parseJwt(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  }
+
+  function showSection(section) {
+    document.getElementById('orderSection').classList.add('hidden');
+    document.getElementById('adminSection').classList.add('hidden');
+    if (section === 'order') {
+      document.getElementById('orderSection').classList.remove('hidden');
+    }
+    if (section === 'admin') {
+      document.getElementById('adminSection').classList.remove('hidden');
+    }
+    clearMessages();
+  }
+
+  function clearMessages() {
+    document.getElementById('orderMsg').textContent = '';
+  }
+
+  document.getElementById('orderForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const item = document.getElementById('item').value;
+    const quantity = parseInt(document.getElementById('quantity').value);
+
+    if (!item || quantity < 1) {
+      alert("Please select valid item and quantity.");
+      return;
+    }
+
+    // Save order to localStorage
+    let orders = JSON.parse(localStorage.getItem('canteenOrders') || '[]');
+
+    orders.push({
+      email: currentUser.email,
+      item,
+      quantity,
+      time: new Date().toLocaleString()
+    });
+
+    localStorage.setItem('canteenOrders', JSON.stringify(orders));
+
+    document.getElementById('orderMsg').textContent = `✅ Order placed: ${quantity} x ${item}`;
+
+    // If admin logged in on same browser, update dashboard live
+    if (currentRole === 'admin') {
+      loadOrders();
+    }
+
+    e.target.reset();
+  });
+
+  function loadOrders() {
+    const ordersList = document.getElementById('ordersList');
+    ordersList.innerHTML = '';
+
+    const orders = JSON.parse(localStorage.getItem('canteenOrders') || '[]');
+
+    if (orders.length === 0) {
+      ordersList.innerHTML = '<li>No orders yet.</li>';
+      return;
+    }
+
+    orders.forEach(order => {
+      const li = document.createElement('li');
+      li.textContent = `${order.email} ordered ${order.quantity} x ${order.item} at ${order.time}`;
+      ordersList.appendChild(li);
+    });
+  }
+
+  function signOut() {
+    google.accounts.id.disableAutoSelect();
+    location.reload();
+  }
+</script>
+
+</body>
+</html>
+
